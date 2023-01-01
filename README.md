@@ -7,7 +7,7 @@ Equivalent of `rsync -ahHAXW --remove-source-files dir1/ dir2/`
 `crew-mvdir` use `rename()` syscall to move files (instead of copying-deleting), that's why it is faster than `rsync`
 
 ## Usage
-```shell
+```
 ./crew-mvdir [-v] [n] [src] [dst]
 
   -v: enable verbose mode
