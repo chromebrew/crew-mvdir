@@ -23,7 +23,7 @@
 
   crew-mvdir use rename() syscall to move files (instead of copying-deleting), that's why it is faster than `rsync`
 
-  Usage: ./crew-mvdir [-v] [src] [dst]
+  Usage: ./crew-mvdir [-v] [-n] [src] [dst]
 
   cc ./crew-mvdir.c -O2 -o crew-mvdir
 */
@@ -39,7 +39,7 @@
 #include <ftw.h>
 #include <sys/stat.h>
 
-bool verbose = false;
+bool verbose = false, no_clobber = false;
 char src[PATH_MAX], dst[PATH_MAX];
 char dirs_to_be_removed[1024][PATH_MAX];
 int dirs_to_be_removed_i = 0;
@@ -58,7 +58,8 @@ int move_file(const char *path, const struct stat *sb, int flag, struct FTW *ftw
     case FTW_SL:
       // file/symlink: Move file to dest, override files with same filename in dest (mode/owner remain unchanged)
       if (access(dst_path, F_OK) == 0) {
-        if (remove(dst_path) != 0) {
+        // do not touch existing files if -n specified
+        if ( !(no_clobber || remove(dst_path) == 0) ) {
           // remove file with same name in dest (if exist)
           fprintf(stderr, "%s: failed to remove file: %s\n", dst_path, strerror(errno));
           exit(errno);
@@ -66,7 +67,7 @@ int move_file(const char *path, const struct stat *sb, int flag, struct FTW *ftw
       }
 
       // move (rename) file to dest
-      if (rename(path, dst_path) != 0) {
+      if ( !(access(dst_path, F_OK) == 0 || rename(path, dst_path) == 0) ) {
         fprintf(stderr, "%s: rename() failed: %s\n", path, strerror(errno));
         exit(errno);
       }
@@ -101,11 +102,15 @@ int move_file(const char *path, const struct stat *sb, int flag, struct FTW *ftw
 int main(int argc, char** argv) {
   int opt;
 
-  while ((opt = getopt(argc, argv, "v")) != -1) {
+  while ((opt = getopt(argc, argv, "vn")) != -1) {
     switch (opt) {
       case 'v':
         // verbose mode
         verbose = true;
+        break;
+      case 'n':
+        // do not overwrite an existing file
+        no_clobber = true;
         break;
       default:
         fprintf(stderr, "Usage: %s [-v] [src] [dst]\n", argv[0]);
