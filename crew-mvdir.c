@@ -42,14 +42,14 @@
 bool verbose = false, no_clobber = false;
 char src[PATH_MAX], dst[PATH_MAX];
 
-int move_file(const char *path, const struct stat *sb, int flag, struct FTW *ftwbuf) {
+int move_file(const char *src_path, const struct stat *sb, int flag, struct FTW *ftwbuf) {
   char dst_path[PATH_MAX] = {0};
   strcpy(dst_path, dst);
   strcat(dst_path, "/");
-  strcat(dst_path, path);
+  strcat(dst_path, src_path + ftwbuf->base);
 
-  if (strcmp(path, ".") == 0) return 0;
-  if (verbose) fprintf(stderr, "%s%s -> %s\n", src, path, dst_path);
+  if (strcmp(src_path, ".") == 0) return 0;
+  if (verbose) fprintf(stderr, "%s -> %s\n", src_path, dst_path);
 
   switch (flag) {
     case FTW_F:
@@ -65,8 +65,8 @@ int move_file(const char *path, const struct stat *sb, int flag, struct FTW *ftw
       }
 
       // move (rename) file to dest
-      if ( !(access(dst_path, F_OK) == 0 || rename(path, dst_path) == 0) ) {
-        fprintf(stderr, "%s: rename() failed: %s\n", path, strerror(errno));
+      if ( !(access(dst_path, F_OK) == 0 || rename(src_path, dst_path) == 0) ) {
+        fprintf(stderr, "%s: rename() failed: %s\n", src_path, strerror(errno));
         exit(errno);
       }
 
@@ -76,12 +76,12 @@ int move_file(const char *path, const struct stat *sb, int flag, struct FTW *ftw
       // create an identical directory in dest (with same permission) if the directory does not exist in dest
       if (access(dst_path, F_OK) != 0) {
         struct stat path_stat;
-        stat(path, &path_stat);
+        stat(src_path, &path_stat);
         mode_t dir_mode = path_stat.st_mode;
 
         if (verbose) fprintf(stderr, "Creating directory %s\n", dst_path);
         if (mkdir(dst_path, dir_mode) != 0) {
-          fprintf(stderr, "%s: mkdir() failed: %s\n", path, strerror(errno));
+          fprintf(stderr, "%s: mkdir() failed: %s\n", src_path, strerror(errno));
           exit(errno);
         }
       }
@@ -89,7 +89,7 @@ int move_file(const char *path, const struct stat *sb, int flag, struct FTW *ftw
       break;
     case FTW_NS:
       // error
-      fprintf(stderr, "%s: stat failed! (%s)\n", path, strerror(errno));
+      fprintf(stderr, "%s: stat failed! (%s)\n", src_path, strerror(errno));
       exit(errno);
   }
   return 0;
@@ -123,13 +123,11 @@ int main(int argc, char** argv) {
   strcpy(src, argv[optind]);
   strcpy(dst, argv[optind + 1]);
 
-  if (chdir(src) != 0) {
+  // call move_file() with files in src recursively
+  if (nftw(src, move_file, 100, FTW_PHYS) != 0) {
     fprintf(stderr, "%s: %s\n", src, strerror(errno));
     exit(errno);
   }
-
-  // call move_file() with files in src recursively
-  nftw(".", move_file, 100, FTW_PHYS);
 
   return 0;
 }
