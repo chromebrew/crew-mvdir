@@ -119,13 +119,13 @@ int main(int argc, char** argv) {
     }
   }
 
-  strcpy(src, argv[optind]);
-  strcpy(dst, argv[optind + 1]);
-
   if (argc - optind != 2) {
     fprintf(stderr, "Usage: %s [-v] [src] [dst]\n", argv[0]);
     exit(EXIT_FAILURE);
   }
+
+  strcpy(src, argv[optind]);
+  strcpy(dst, argv[optind + 1]);
 
   if (chdir(src) != 0) {
     fprintf(stderr, "%s: %s\n", src, strerror(errno));
