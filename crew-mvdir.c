@@ -113,14 +113,14 @@ int main(int argc, char** argv) {
         no_clobber = true;
         break;
       default:
-        fprintf(stderr, "Usage: %s [-v] [src] [dst]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [-v] [-n] [src] [dst]\n", argv[0]);
         exit(EXIT_FAILURE);
         break;
     }
   }
 
   if (argc - optind != 2) {
-    fprintf(stderr, "Usage: %s [-v] [src] [dst]\n", argv[0]);
+    fprintf(stderr, "Usage: %s [-v] [-n] [src] [dst]\n", argv[0]);
     exit(EXIT_FAILURE);
   }
 
