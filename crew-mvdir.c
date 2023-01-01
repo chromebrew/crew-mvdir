@@ -46,7 +46,7 @@ int move_file(const char *src_path, const struct stat *sb, int flag, struct FTW 
   char dst_path[PATH_MAX] = {0};
   strcpy(dst_path, dst);
   strcat(dst_path, "/");
-  strcat(dst_path, src_path + ftwbuf->base);
+  strcat(dst_path, src_path + strlen(src));
 
   if (strcmp(src_path, ".") == 0) return 0;
   if (verbose) fprintf(stderr, "%s -> %s\n", src_path, dst_path);
