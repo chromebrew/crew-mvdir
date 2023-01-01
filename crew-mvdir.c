@@ -41,8 +41,6 @@
 
 bool verbose = false, no_clobber = false;
 char src[PATH_MAX], dst[PATH_MAX];
-char dirs_to_be_removed[1024][PATH_MAX];
-int dirs_to_be_removed_i = 0;
 
 int move_file(const char *path, const struct stat *sb, int flag, struct FTW *ftwbuf) {
   char dst_path[PATH_MAX] = {0};
@@ -88,8 +86,6 @@ int move_file(const char *path, const struct stat *sb, int flag, struct FTW *ftw
         }
       }
 
-      // add directory to remove list (will be removed after processing all files in src)
-      strcpy(dirs_to_be_removed[dirs_to_be_removed_i++], path);
       break;
     case FTW_NS:
       // error
@@ -134,17 +130,6 @@ int main(int argc, char** argv) {
 
   // call move_file() with files in src recursively
   nftw(".", move_file, 100, FTW_PHYS);
-
-  // remove directories in src
-  // reverse list to prevent "Directory not empty" error
-  for (int i = (dirs_to_be_removed_i - 1); i >= 0; i--) {
-    if (verbose) fprintf(stderr, "Removing directory %s\n", dirs_to_be_removed[i]);
-
-    if (remove(dirs_to_be_removed[i]) != 0) {
-      fprintf(stderr, "%s: failed to remove directory: %s\n", dirs_to_be_removed[i], strerror(errno));
-      exit(errno);
-    }
-  }
 
   return 0;
 }
