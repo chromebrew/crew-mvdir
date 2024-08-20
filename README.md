@@ -20,6 +20,6 @@ cc ./crew-mvdir.c -O2 -o crew-mvdir
 ```
 
 ## License
-Copyright (C) 2013-2023 Chromebrew Authors
+Copyright (C) 2013-2024 Chromebrew Authors
 
 This project including all of its source files is released under the terms of [GNU General Public License (version 3 or later)](http://www.gnu.org/licenses/gpl.txt).
