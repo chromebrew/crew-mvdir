@@ -16,7 +16,7 @@
 */
 
 /*
-  ruby_binding/crew_mvdir.c: C binding for use in `crew`
+  ruby_binding/crew_mvdir.c: Ruby binding for use in `crew`
 
   Usage: crew_mvdir(src, dst, verbose: false)
 */
