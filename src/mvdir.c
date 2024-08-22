@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2013-2023 Chromebrew Authors
+  Copyright (C) 2013-2024 Chromebrew Authors
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,19 +15,6 @@
   along with this program. If not, see https://www.gnu.org/licenses/gpl-3.0.html.
 */
 
-/*
-  crew-mvdir: Move all files under one directory to another,
-              override conflict files in the destination directory (merge two directories)
-
-  Equivalent of `rsync -ahHAXW --remove-source-files dir1/ dir2/`
-
-  crew-mvdir use rename() syscall to move files (instead of copying-deleting), that's why it is faster than `rsync`
-
-  Usage: ./crew-mvdir [-v] [-n] [src] [dst]
-
-  cc ./crew-mvdir.c -O2 -o crew-mvdir
-*/
-
 #define _XOPEN_SOURCE 700 // for nftw()
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,14 +22,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
-#include <limits.h>
 #include <string.h>
 #include <ftw.h>
 #include <sys/sendfile.h>
 #include <sys/stat.h>
+#include "./mvdir.h"
 
-bool same_fs = true, verbose = false, no_clobber = false;
-char src[PATH_MAX], dst[PATH_MAX];
+struct mvdir_opts *opts;
 
 void copy_and_delete_file(const struct stat *src_info, const char *src_path, const char *dst_path) {
   // copy_and_delete_file(): copy a file and delete it after copying, used as a fallback when rename() does not work
@@ -77,11 +63,11 @@ void copy_and_delete_file(const struct stat *src_info, const char *src_path, con
 int move_file(const char *src_path, const struct stat *src_info, int flag, struct FTW *ftwbuf) {
   char dst_path[PATH_MAX];
 
-  strcpy(dst_path, dst);
-  strcat(dst_path, src_path + strlen(src));
+  strcpy(dst_path, opts->dst);
+  strcat(dst_path, src_path + strlen(opts->src));
 
   if (strcmp(src_path, ".") == 0) return 0;
-  if (verbose) fprintf(stderr, "%s -> %s\n", src_path, dst_path);
+  if (opts->verbose) fprintf(stderr, "%s -> %s\n", src_path, dst_path);
 
   switch (flag) {
     case FTW_F:
@@ -89,7 +75,7 @@ int move_file(const char *src_path, const struct stat *src_info, int flag, struc
     case FTW_SLN:
       if (access(dst_path, F_OK) == 0) {
         // do not touch existing files if -n specified
-        if (!(no_clobber || remove(dst_path) == 0)) {
+        if (!(opts->no_clobber || remove(dst_path) == 0)) {
           // remove file with same name in dest (if exist)
           fprintf(stderr, "%s: failed to remove file: %s\n", dst_path, strerror(errno));
           exit(errno);
@@ -97,14 +83,14 @@ int move_file(const char *src_path, const struct stat *src_info, int flag, struc
       }
 
       // move (rename) file to dest
-      if (same_fs) {
+      if (opts->same_fs) {
         // (when source and destination are in the same filesystem)
         // file/symlink: move file to dest, override files with same filename in dest (mode/owner remain unchanged)
         if (rename(src_path, dst_path) == -1) {
           if (errno == EXDEV) {
             // fallback to copying-deleting if source and destination are not in the same filesystem
-            same_fs = false;
-            if (verbose) fprintf(stderr, "Warning: destination is not in the same filesystem, will fallback to sendfile() instead.\n");
+            opts->same_fs = false;
+            if (opts->verbose) fprintf(stderr, "Warning: destination is not in the same filesystem, will fallback to sendfile() instead.\n");
             return move_file(src_path, src_info, flag, ftwbuf);
           }
 
@@ -142,7 +128,7 @@ int move_file(const char *src_path, const struct stat *src_info, int flag, struc
       if (access(dst_path, F_OK) == -1) {
         mode_t dir_mode = src_info->st_mode;
 
-        if (verbose) fprintf(stderr, "Creating directory %s\n", dst_path);
+        if (opts->verbose) fprintf(stderr, "Creating directory %s\n", dst_path);
         if (mkdir(dst_path, dir_mode) == -1) {
           fprintf(stderr, "%s: mkdir() failed: %s\n", src_path, strerror(errno));
           exit(errno);
@@ -158,50 +144,23 @@ int move_file(const char *src_path, const struct stat *src_info, int flag, struc
   return 0;
 }
 
-int main(int argc, char** argv) {
-  int opt;
-
-  while ((opt = getopt(argc, argv, "vn")) != -1) {
-    switch (opt) {
-      case 'v':
-        // verbose mode
-        verbose = true;
-        break;
-      case 'n':
-        // do not overwrite an existing file
-        no_clobber = true;
-        break;
-      default:
-        fprintf(stderr, "Usage: %s [-v] [-n] [src] [dst]\n", argv[0]);
-        exit(EXIT_FAILURE);
-        break;
-    }
-  }
-
-  if (argc - optind != 2) {
-    fprintf(stderr, "Usage: %s [-v] [-n] [src] [dst]\n", argv[0]);
-    exit(EXIT_FAILURE);
-  }
-
-  strcpy(src, argv[optind]);
-  strcpy(dst, argv[optind + 1]);
-
-  struct stat src_info, dst_info;
-  stat(src, &src_info);
-  stat(dst, &dst_info);
+int move_directory(struct mvdir_opts *optPtr) {
+  opts = optPtr;
 
   // trailing slashes in path are required in order to make move_file() works
-  int src_len = strlen(src),
-      dst_len = strlen(dst);
+  int src_len = strlen(opts->src),
+      dst_len = strlen(opts->dst);
 
-  if (src[src_len - 1] != '/') src[src_len] = '/';
-  if (dst[dst_len - 1] != '/') dst[dst_len] = '/';
+  if (opts->src[src_len - 1] != '/') opts->src[src_len] = '/';
+  if (opts->dst[dst_len - 1] != '/') opts->dst[dst_len] = '/';
 
   // call move_file() with files in src recursively
-  if (nftw(src, move_file, 100, FTW_PHYS | FTW_MOUNT) == -1) {
-    fprintf(stderr, "%s: nftw() failed: %s\n", src, strerror(errno));
+  int ret = nftw(opts->src, move_file, 100, FTW_PHYS | FTW_MOUNT);
+
+  if (ret == -1) {
+    fprintf(stderr, "%s: nftw() failed: %s\n", opts->src, strerror(errno));
     exit(errno);
   }
 
-  return 0;
+  return ret;
 }
