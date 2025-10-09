@@ -23,7 +23,7 @@
 
   crew-mvdir use rename() syscall to move files (instead of copying-deleting), that's why it is faster than `rsync`
 
-  Usage: ./crew-mvdir [-v] [-n] [-c] [src] [dst]
+  Usage: ./crew-mvdir [-c] [-n] [-v] [src] [dst]
 
   cc ./crew-mvdir.c -O3 -flto -o crew-mvdir
 */
@@ -41,27 +41,27 @@ int main(int argc, char** argv) {
 
   while ((opt = getopt(argc, argv, "vnc")) != -1) {
     switch (opt) {
-      case 'v':
-        // verbose mode
-        opts.verbose = true;
+      case 'c':
+        // force copying-deleting instead of renaming (moving) the file
+        opts.force_copying = true;
         break;
       case 'n':
         // do not overwrite an existing file
         opts.no_clobber = true;
         break;
-      case 'c':
-        // force copying-deleting instead of renaming (moving) the file
-        opts.force_copying = true;
+      case 'v':
+        // verbose mode
+        opts.verbose = true;
         break;
       default:
-        fprintf(stderr, "Usage: %s [-v] [-n] [-c] [src] [dst]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [-c] [-n] [-v] [src] [dst]\n", argv[0]);
         exit(EXIT_FAILURE);
         break;
     }
   }
 
   if (argc - optind != 2) {
-    fprintf(stderr, "Usage: %s [-v] [-n] [-c] [src] [dst]\n", argv[0]);
+    fprintf(stderr, "Usage: %s [-c] [-n] [-v] [src] [dst]\n", argv[0]);
     exit(EXIT_FAILURE);
   }
 

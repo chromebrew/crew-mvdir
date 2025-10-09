@@ -8,11 +8,11 @@ Equivalent of `rsync -ahHAXW --remove-source-files dir1/ dir2/`
 
 ## Usage
 ```
-./crew-mvdir [-v] [-n] [-c] [src] [dst]
+./crew-mvdir [-c] [-n] [-v] [src] [dst]
 
-  -v: enable verbose mode
-  -n: do not overwrite an existing file (no clobber)
   -c: force copying-deleting instead of renaming (moving) the file
+  -n: do not overwrite an existing file (no clobber)
+  -v: enable verbose mode
 ```
 
 ## Compile

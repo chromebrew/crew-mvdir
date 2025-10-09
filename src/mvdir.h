@@ -20,7 +20,7 @@
 
 struct mvdir_opts {
   char src[PATH_MAX], dst[PATH_MAX];
-  bool verbose, no_clobber, force_copying;
+  bool force_copying, no_clobber, verbose;
 };
 
 int move_directory(struct mvdir_opts *optPtr);
