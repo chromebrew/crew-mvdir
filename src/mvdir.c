@@ -78,7 +78,7 @@ void copy_and_delete_symlink(const char *src_path, const char *dst_path) {
   }
 }
 
-int move_file(const char *src_path, const struct stat *src_info, int flag, struct FTW *) {
+int move_path(const char *src_path, const struct stat *src_info, int flag, struct FTW *) {
   bool dst_exist = false;
   char dst_path[PATH_MAX];
   struct stat dst_info;
@@ -91,7 +91,11 @@ int move_file(const char *src_path, const struct stat *src_info, int flag, struc
   if (faccessat(AT_FDCWD, dst_path, F_OK, AT_SYMLINK_NOFOLLOW) == 0) {
     // read destination path info if already exists
     dst_exist = true;
-    lstat(dst_path, &dst_info);
+
+    if (lstat(dst_path, &dst_info) == -1) {
+      fprintf(stderr, "%s: lstat() failed: %s\n", dst_path, strerror(errno));
+      exit(errno);
+    }
   }
 
   switch (flag) {
@@ -163,15 +167,15 @@ int move_file(const char *src_path, const struct stat *src_info, int flag, struc
 int move_directory(struct mvdir_opts *optPtr) {
   opts = optPtr;
 
-  // trailing slashes in path are required in order to make move_file() works
+  // trailing slashes in path are required in order to make move_path() works
   int src_len = strlen(opts->src),
       dst_len = strlen(opts->dst);
 
   if (opts->src[src_len - 1] != '/') opts->src[src_len] = '/';
   if (opts->dst[dst_len - 1] != '/') opts->dst[dst_len] = '/';
 
-  // call move_file() with files in src recursively
-  int ret = nftw(opts->src, move_file, 100, FTW_PHYS | FTW_MOUNT);
+  // call move_path() with files in src recursively
+  int ret = nftw(opts->src, move_path, 100, FTW_PHYS | FTW_MOUNT);
 
   if (ret == -1) {
     fprintf(stderr, "%s: nftw() failed: %s\n", opts->src, strerror(errno));
