@@ -109,7 +109,7 @@ int move_path(const char *src_path, const struct stat *src_info, int flag, struc
 
       if (dst_exist && S_ISDIR(dst_info.st_mode)) {
         fprintf(stderr, "%s: cannot overwrite directory with non-directory\n", dst_path);
-        exit(1);
+        exit(EXIT_FAILURE);
       }
 
       if (dst_exist && remove(dst_path) == -1) {
@@ -142,7 +142,7 @@ int move_path(const char *src_path, const struct stat *src_info, int flag, struc
     case FTW_D:
       if (dst_exist && !S_ISDIR(dst_info.st_mode)) {
         fprintf(stderr, "%s: cannot overwrite non-directory with directory\n", dst_path);
-        exit(1);
+        exit(EXIT_FAILURE);
       }
 
       if (!dst_exist) {

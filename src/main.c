@@ -28,6 +28,8 @@
   cc ./crew-mvdir.c -O3 -flto -o crew-mvdir
 */
 
+#define CREW_MVDIR_VERSION "0.4"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -38,6 +40,11 @@
 int main(int argc, char** argv) {
   struct mvdir_opts opts = {0};
   int opt;
+
+  if (argc == 2 && strcmp(argv[1], "--version") == 0) {
+    fprintf(stderr, CREW_MVDIR_VERSION "\n");
+    return 0;
+  }
 
   while ((opt = getopt(argc, argv, "vnc")) != -1) {
     switch (opt) {
@@ -62,7 +69,7 @@ int main(int argc, char** argv) {
 
   if (argc - optind != 2) {
     fprintf(stderr, "Usage: %s [-c] [-n] [-v] [src] [dst]\n", argv[0]);
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   strcpy(opts.src, argv[optind]);
