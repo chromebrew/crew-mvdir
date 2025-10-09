@@ -78,7 +78,7 @@ void copy_and_delete_symlink(const char *src_path, const char *dst_path) {
   }
 }
 
-int move_file(const char *src_path, const struct stat *src_info, int flag, struct FTW *ftwbuf) {
+int move_file(const char *src_path, const struct stat *src_info, int flag, struct FTW *) {
   bool dst_exist = false;
   char dst_path[PATH_MAX];
   struct stat dst_info;
