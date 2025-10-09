@@ -60,76 +60,92 @@ void copy_and_delete_file(const struct stat *src_info, const char *src_path, con
   }
 }
 
-int move_file(const char *src_path, const struct stat *src_info, int flag, struct FTW *ftwbuf) {
-  char dst_path[PATH_MAX];
+void copy_and_delete_symlink(const char *src_path, const char *dst_path) {
+  // copy_and_delete_symlink(): re-create a symlink in destination and delete the original one afterwards, used as a fallback when rename() does not work
+  //                            (i.e source and destination are not in the same filesystem)
+  char target[PATH_MAX];
+  target[readlink(src_path, target, PATH_MAX - 1)] = 0;
 
-  strcpy(dst_path, opts->dst);
-  strcat(dst_path, src_path + strlen(opts->src));
+  if (symlink(target, dst_path) == -1) {
+    fprintf(stderr, "%s: symlink() failed: %s\n", dst_path, strerror(errno));
+    exit(errno);
+  }
+
+  // remove source after copying
+  if (remove(src_path) == -1) {
+    fprintf(stderr, "%s: failed to remove symlink: %s\n", src_path, strerror(errno));
+    exit(errno);
+  }
+}
+
+int move_file(const char *src_path, const struct stat *src_info, int flag, struct FTW *ftwbuf) {
+  bool dst_exist = false;
+  char dst_path[PATH_MAX];
+  struct stat dst_info;
+
+  snprintf(dst_path, PATH_MAX, "%s%s", opts->dst, &src_path[strlen(opts->src)]);
 
   if (strcmp(src_path, ".") == 0) return 0;
   if (opts->verbose) fprintf(stderr, "%s -> %s\n", src_path, dst_path);
+
+  if (faccessat(AT_FDCWD, dst_path, F_OK, AT_SYMLINK_NOFOLLOW) == 0) {
+    // read destination path info if already exists
+    dst_exist = true;
+    lstat(dst_path, &dst_info);
+  }
 
   switch (flag) {
     case FTW_F:
     case FTW_SL:
     case FTW_SLN:
-      if (access(dst_path, F_OK) == 0) {
+      if (dst_exist && opts->no_clobber) {
         // do not touch existing files if -n specified
-        if (!(opts->no_clobber || remove(dst_path) == 0)) {
-          // remove file with same name in dest (if exist)
-          fprintf(stderr, "%s: failed to remove file: %s\n", dst_path, strerror(errno));
-          exit(errno);
-        }
+        return 0;
       }
 
-      // move (rename) file to dest
-      if (opts->same_fs) {
-        // (when source and destination are in the same filesystem)
-        // file/symlink: move file to dest, override files with same filename in dest (mode/owner remain unchanged)
-        if (rename(src_path, dst_path) == -1) {
-          if (errno == EXDEV) {
-            // fallback to copying-deleting if source and destination are not in the same filesystem
-            opts->same_fs = false;
-            if (opts->verbose) fprintf(stderr, "Warning: destination is not in the same filesystem, will fallback to sendfile() instead.\n");
-            return move_file(src_path, src_info, flag, ftwbuf);
-          }
+      if (dst_exist && S_ISDIR(dst_info.st_mode)) {
+        fprintf(stderr, "%s: cannot overwrite directory with non-directory", dst_path);
+        exit(1);
+      }
 
+      if (dst_exist && remove(dst_path) == -1) {
+        // remove file with same name in dest (if exist)
+        fprintf(stderr, "%s: failed to remove file: %s\n", dst_path, strerror(errno));
+        exit(errno);
+      }
+
+      // move (rename) file to dest when source and destination are in the same filesystem
+      // file/symlink: move file to dest, override files with same filename in dest (mode/owner remain unchanged)
+      if (opts->force_copying || rename(src_path, dst_path) == -1) {
+        if (opts->force_copying || errno == EXDEV) {
+          // fallback to copying-deleting if source and destination are not in the same filesystem
+          if (opts->verbose) fprintf(stderr, "Warning: -c specified or destination is not in the same filesystem, will fallback to copying-deleting instead.\n");
+
+          if (flag == FTW_F) {
+            // file: copy source file to destination and delete it (mode will be transferred)
+            copy_and_delete_file(src_info, src_path, dst_path);
+          } else {
+            // symlink: create an identical symlink and delete the source (mode will be transferred)
+            copy_and_delete_symlink(src_path, dst_path);
+          }
+        } else {
           fprintf(stderr, "%s: rename() failed: %s\n", src_path, strerror(errno));
           exit(errno);
-        }
-      } else {
-        // (when source and destination are not in the same filesystem)
-        if (flag == FTW_F) {
-          // file: copy source file to destination and delete it (mode will be transferred)
-          copy_and_delete_file(src_info, src_path, dst_path);
-        } else {
-          // symlink: create an identical symlink and delete the source (mode will be transferred)
-          char target[PATH_MAX];
-
-          ssize_t target_len = readlink(src_path, target, PATH_MAX - 1);
-          target[target_len] = 0;
-
-          if (symlink(target, dst_path) == -1) {
-            fprintf(stderr, "%s: symlink() failed: %s\n", dst_path, strerror(errno));
-            exit(errno);
-          }
-
-          // remove source after copying
-          if (remove(src_path) == -1) {
-            fprintf(stderr, "%s: failed to remove symlink: %s\n", src_path, strerror(errno));
-            exit(errno);
-          }
         }
       }
 
       break;
     case FTW_D:
-      // directory: create an identical directory in destination if not exist (mode will be transferred)
-      if (access(dst_path, F_OK) == -1) {
-        mode_t dir_mode = src_info->st_mode;
+      if (dst_exist && !S_ISDIR(dst_info.st_mode)) {
+        fprintf(stderr, "%s: cannot overwrite non-directory with directory\n", dst_path);
+        exit(1);
+      }
 
+      if (!dst_exist) {
+        // directory: create an identical directory in destination if not exist (mode will be transferred)
         if (opts->verbose) fprintf(stderr, "Creating directory %s\n", dst_path);
-        if (mkdir(dst_path, dir_mode) == -1) {
+
+        if (mkdir(dst_path, src_info->st_mode) == -1) {
           fprintf(stderr, "%s: mkdir() failed: %s\n", src_path, strerror(errno));
           exit(errno);
         }

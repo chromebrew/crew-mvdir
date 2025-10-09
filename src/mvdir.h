@@ -19,8 +19,8 @@
 #include <stdbool.h>
 
 struct mvdir_opts {
-  char *src, *dst;
-  bool same_fs, verbose, no_clobber;
+  char src[PATH_MAX], dst[PATH_MAX];
+  bool verbose, no_clobber, force_copying;
 };
 
 int move_directory(struct mvdir_opts *optPtr);

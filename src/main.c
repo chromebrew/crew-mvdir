@@ -23,9 +23,9 @@
 
   crew-mvdir use rename() syscall to move files (instead of copying-deleting), that's why it is faster than `rsync`
 
-  Usage: ./crew-mvdir [-v] [-n] [src] [dst]
+  Usage: ./crew-mvdir [-v] [-n] [-c] [src] [dst]
 
-  cc ./crew-mvdir.c -O2 -o crew-mvdir
+  cc ./crew-mvdir.c -O3 -flto -o crew-mvdir
 */
 
 #include <stdio.h>
@@ -36,37 +36,37 @@
 #include "./mvdir.h"
 
 int main(int argc, char** argv) {
-  struct mvdir_opts *opts = calloc(1, sizeof opts);
+  struct mvdir_opts opts = {0};
   int opt;
 
-  // initialize mvdir_opts struct
-  opts->src = calloc(sizeof(char), PATH_MAX);
-  opts->dst = calloc(sizeof(char), PATH_MAX);
-
-  while ((opt = getopt(argc, argv, "vn")) != -1) {
+  while ((opt = getopt(argc, argv, "vnc")) != -1) {
     switch (opt) {
       case 'v':
         // verbose mode
-        opts->verbose = true;
+        opts.verbose = true;
         break;
       case 'n':
         // do not overwrite an existing file
-        opts->no_clobber = true;
+        opts.no_clobber = true;
+        break;
+      case 'c':
+        // force copying-deleting instead of renaming (moving) the file
+        opts.force_copying = true;
         break;
       default:
-        fprintf(stderr, "Usage: %s [-v] [-n] [src] [dst]\n", argv[0]);
+        fprintf(stderr, "Usage: %s [-v] [-n] [-c] [src] [dst]\n", argv[0]);
         exit(EXIT_FAILURE);
         break;
     }
   }
 
   if (argc - optind != 2) {
-    fprintf(stderr, "Usage: %s [-v] [-n] [src] [dst]\n", argv[0]);
+    fprintf(stderr, "Usage: %s [-v] [-n] [-c] [src] [dst]\n", argv[0]);
     exit(EXIT_FAILURE);
   }
 
-  strcpy(opts->src, argv[optind]);
-  strcpy(opts->dst, argv[optind + 1]);
+  strcpy(opts.src, argv[optind]);
+  strcpy(opts.dst, argv[optind + 1]);
 
-  return move_directory(opts);
+  return move_directory(&opts);
 }
