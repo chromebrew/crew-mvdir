@@ -104,7 +104,7 @@ int move_file(const char *src_path, const struct stat *src_info, int flag, struc
       }
 
       if (dst_exist && S_ISDIR(dst_info.st_mode)) {
-        fprintf(stderr, "%s: cannot overwrite directory with non-directory", dst_path);
+        fprintf(stderr, "%s: cannot overwrite directory with non-directory\n", dst_path);
         exit(1);
       }
 
