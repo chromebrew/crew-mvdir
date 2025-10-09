@@ -1,5 +1,5 @@
 /*
-  Copyright (C) 2013-2024 Chromebrew Authors
+  Copyright (C) 2013-2025 Chromebrew Authors
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -125,7 +125,7 @@ int move_file(const char *src_path, const struct stat *src_info, int flag, struc
             // file: copy source file to destination and delete it (mode will be transferred)
             copy_and_delete_file(src_info, src_path, dst_path);
           } else {
-            // symlink: create an identical symlink and delete the source (mode will be transferred)
+            // symlink: create an identical symlink and delete the source
             copy_and_delete_symlink(src_path, dst_path);
           }
         } else {

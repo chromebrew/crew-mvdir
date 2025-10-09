@@ -8,18 +8,19 @@ Equivalent of `rsync -ahHAXW --remove-source-files dir1/ dir2/`
 
 ## Usage
 ```
-./crew-mvdir [-v] [-n] [src] [dst]
+./crew-mvdir [-v] [-n] [-c] [src] [dst]
 
   -v: enable verbose mode
   -n: do not overwrite an existing file (no clobber)
+  -c: force copying-deleting instead of renaming (moving) the file
 ```
 
 ## Compile
 ```shell
-cc ./crew-mvdir.c -O2 -o crew-mvdir
+cc ./crew-mvdir.c -O3 -flto -o crew-mvdir
 ```
 
 ## License
-Copyright (C) 2013-2024 Chromebrew Authors
+Copyright (C) 2013-2025 Chromebrew Authors
 
 This project including all of its source files is released under the terms of [GNU General Public License (version 3 or later)](http://www.gnu.org/licenses/gpl.txt).
