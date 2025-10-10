@@ -13,11 +13,13 @@ Equivalent of `rsync -ahHAXW --remove-source-files dir1/ dir2/`
   -c: force copying-deleting instead of renaming (moving) the file
   -n: do not overwrite an existing file (no clobber)
   -v: enable verbose mode
+
+  --version: print version and exit
 ```
 
 ## Compile
 ```shell
-cc ./crew-mvdir.c -O3 -flto -o crew-mvdir
+make && make install
 ```
 
 ## License
