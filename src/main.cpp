@@ -146,10 +146,8 @@ int main(int argc, char **argv) {
 
   int opt;
 
-  while ((opt = getopt(argc, argv, "vnc")) != -1)
-  {
-    switch (opt)
-    {
+  while ((opt = getopt(argc, argv, "vnc")) != -1) {
+    switch (opt) {
     case 'c':
       // force copying-deleting instead of renaming (moving) the file
       force_copying = true;
