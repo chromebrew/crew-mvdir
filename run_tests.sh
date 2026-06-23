@@ -16,12 +16,12 @@ rm -rf test && mkdir test
   cd test
   mkdir -p src dst
 
-  echo_info '[+] Test 1: Empty directory move under same filesystem'
+  echo_info '[+] Test 1: Empty directory move'
   ../crew-mvdir -v src dst && echo_success '[+] PASS' || echo_error '[+] FAIL'
 
   rm -r src dst && mkdir -p src dst
 
-  echo_info '[+] Test 2: Directory move under same filesystem (destination is empty)'
+  echo_info '[+] Test 2: Directory move (destination is empty)'
   mkdir -p src/dir1
   touch src/{file1,file2,file3}
   ln -s notexist src/symlink1
@@ -32,11 +32,12 @@ rm -rf test && mkdir test
     echo_success '[+] PASS'
   else
     echo_error '[+] FAIL'
+    exit 1
   fi
 
   rm -r src dst && mkdir -p src dst
 
-  echo_info '[+] Test 3: Directory move under same filesystem (destination is non-empty)'
+  echo_info '[+] Test 3: Directory move (destination is non-empty)'
   mkdir -p src/dir1 dst/dir1
   touch src/{file1,file2,file3} src/dir1/file4 dst/{file1,file2,file3}
   ln -s notexist src/symlink1
@@ -47,21 +48,23 @@ rm -rf test && mkdir test
     echo_success '[+] PASS'
   else
     echo_error '[+] FAIL'
+    exit 1
   fi
 
   rm -r src dst && mkdir -p src /tmp/dst
 
-  echo_info '[+] Test 4: Directory move under different filesystem (destination is non-empty)'
-  mkdir -p src/dir1 /tmp/dst/dir1
-  touch src/{file1,file2,file3} src/dir1/file4 /tmp/dst/{file1,file2,file3}
+  echo_info '[+] Test 3: Directory move (force copying-deleting, destination is non-empty)'
+  mkdir -p src/dir1 dst/dir1
+  touch src/{file1,file2,file3} src/dir1/file4 dst/{file1,file2,file3}
   ln -s notexist src/symlink1
   ln -s /bin src/symlink2
-  ../crew-mvdir -v src /tmp/dst
-  if [ -f /tmp/dst/file1 ] && [ -f /tmp/dst/file2 ] && [ -f /tmp/dst/file3 ] && [ -f /tmp/dst/dir1/file4 ] &&
-     [ -L /tmp/dst/symlink1 ] && [ -L /tmp/dst/symlink2 ]; then
+  ../crew-mvdir -v -c src dst
+  if [ -f dst/file1 ] && [ -f dst/file2 ] && [ -f dst/file3 ] && [ -f dst/dir1/file4 ] &&
+     [ -L dst/symlink1 ] && [ -L dst/symlink2 ]; then
     echo_success '[+] PASS'
   else
     echo_error '[+] FAIL'
+    exit 1
   fi
 
   rm -r src /tmp/dst && mkdir -p src dst
@@ -75,6 +78,7 @@ rm -rf test && mkdir test
     echo_success '[+] PASS'
   else
     echo_error '[+] FAIL'
+    exit 1
   fi
 
   rm -rf src dst

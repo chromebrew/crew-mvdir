@@ -25,26 +25,29 @@
 
   Usage: ./crew-mvdir [-c] [-n] [-v] [src] [dst]
 
-  c++ ./main.cpp -O3 -flto -o crew-mvdir
+  c++ ./main.cpp -std=c++17 -O3 -flto -o crew-mvdir
 */
 
 #include <iostream>
 #include <string>
-#include <cstring>
+#include <vector>
 #include <filesystem>
 #include <system_error>
+#include <cstring>
 #include <unistd.h>
 
 #define CREW_MVDIR_VERSION "1.0"
 
 using namespace std;
 
-int recreate_and_delete(string src, string dst) {
+int recreate_and_delete(string src, string dst, bool verbose) {
+  if (verbose) cerr << "Warning: -c specified or destination is not in the same filesystem, will fallback to copying-deleting instead." << endl;
+
   try {
     filesystem::copy(src, dst, filesystem::copy_options::copy_symlinks);
     filesystem::remove(src);
   } catch (const filesystem::filesystem_error &err) {
-    cerr << src << ": failed to copy file: " << err.code().message() << endl;
+    cerr << src << ": failed to copy/delete file: " << err.code().message() << endl;
     return err.code().value();
   }
 
@@ -62,7 +65,10 @@ int move_directory(filesystem::path src, filesystem::path dst, bool force_copyin
     return EXIT_FAILURE;
   }
 
-  for (const auto &entry : filesystem::recursive_directory_iterator(src)) {
+  const auto it = filesystem::recursive_directory_iterator(src);
+  const vector<filesystem::directory_entry> entries(it, filesystem::recursive_directory_iterator());
+
+  for (const auto &entry : entries) {
     auto dst_path = dst / entry.path().lexically_relative(src);
 
     if (verbose) cerr << entry.path().string() << " -> " << dst_path << endl;
@@ -79,7 +85,7 @@ int move_directory(filesystem::path src, filesystem::path dst, bool force_copyin
           if (verbose) cerr << "Creating directory " << dst_path << endl;
           filesystem::create_directory(dst_path, entry.path());
         } catch (const filesystem::filesystem_error &err) {
-          cerr << entry.path().string() << ": mkdir() failed: " << err.code().value() << endl;
+          cerr << entry.path().string() << ": mkdir() failed: " << err.code().message() << endl;
           return err.code().value();
         }
       }
@@ -88,6 +94,11 @@ int move_directory(filesystem::path src, filesystem::path dst, bool force_copyin
       if (filesystem::exists(dst_path)) {
         // do not touch existing files if -n specified
         if (no_clobber) continue;
+
+        if (!filesystem::is_symlink(dst_path, error) && filesystem::is_directory(dst_path, error)) {
+          cerr << dst_path << ": cannot overwrite directory with non-directory" << endl;
+          return EXIT_FAILURE;
+        }
 
         // remove file with same name in dest (if exist)
         try {
@@ -99,7 +110,7 @@ int move_directory(filesystem::path src, filesystem::path dst, bool force_copyin
       }
 
       if (force_copying) {
-        int ret = recreate_and_delete(entry.path(), dst_path);
+        int ret = recreate_and_delete(entry.path(), dst_path, verbose);
         if (ret) return ret;
         continue;
       }
@@ -110,9 +121,7 @@ int move_directory(filesystem::path src, filesystem::path dst, bool force_copyin
       } catch (const filesystem::filesystem_error &err) {
         if (err.code().value() == EXDEV) {
           // fallback to copying-deleting if source and destination are not in the same filesystem
-          if (verbose) cerr << "Warning: -c specified or destination is not in the same filesystem, will fallback to copying-deleting instead." << endl;
-
-          int ret = recreate_and_delete(entry.path(), dst_path);
+          int ret = recreate_and_delete(entry.path(), dst_path, verbose);
           if (ret) return ret;
         } else {
           cerr << entry.path().string() << ": rename() failed: " << err.code().message() << endl;
